@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.active == true;
+    }
+
+    function safeFileName(fileName) {
+      return fileName.matches('[A-Za-z0-9][A-Za-z0-9._-]{0,119}');
+    }
+
+    function validImage(fileName, maxBytes) {
+      return safeFileName(fileName)
+        && request.resource.size > 0
+        && request.resource.size <= maxBytes
+        && request.resource.contentType.matches('image/(jpeg|png|webp|avif)');
+    }
+
+    match /portfolio/profile/{fileName} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && validImage(fileName, 5 * 1024 * 1024);
+      allow delete: if isAdmin();
+    }
+
+    match /portfolio/projects/{projectId}/{fileName} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && projectId.matches('[A-Za-z0-9][A-Za-z0-9_-]{0,79}')
+        && validImage(fileName, 8 * 1024 * 1024);
+      allow delete: if isAdmin();
+    }
+
+    match /portfolio/resume/{fileName} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && safeFileName(fileName)
+        && fileName.matches('.*[.]pdf')
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+      allow delete: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

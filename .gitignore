@@ -62,8 +62,10 @@ node_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
+# dotenv environment files (Vite exposes VITE_* values to the browser, but
+# local project configuration still should not be committed accidentally).
+.env*
+!.env.example
 
 # dataconnect generated files
 .dataconnect

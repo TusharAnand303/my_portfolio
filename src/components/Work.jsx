@@ -1,6 +1,7 @@
 import Icon from './Icon'
 import WaveWords from './WaveWords'
 import { motion, useReducedMotion } from 'motion/react'
+import { usePortfolioContent } from '../context/PortfolioContentContext'
 
 const projects = [
   {
@@ -97,7 +98,7 @@ function ProjectProof({ project }) {
       <p className="proof-kicker"><WaveWords>{project.preview.eyebrow}</WaveWords></p>
       <h4><WaveWords>{project.preview.title}</WaveWords></h4>
       <ol className="proof-steps">
-        {project.preview.steps.map((step, index) => <li key={step}><span>0{index + 1}</span>{step}</li>)}
+        {project.preview.steps.map((step, index) => <li key={step}><span className="proof-step-number"><WaveWords>{`0${index + 1}`}</WaveWords></span><span className="proof-step-copy"><WaveWords>{step}</WaveWords></span></li>)}
       </ol>
       <dl className="project-facts">
         {project.facts.map((fact) => <div key={fact.label}><dt><WaveWords>{fact.label}</WaveWords></dt><dd><WaveWords>{fact.value}</WaveWords></dd></div>)}
@@ -119,12 +120,14 @@ function ProjectCard({ project, index }) {
       data-cursor="VIEW"
     >
       <div className="project-info">
-        <p className="project-meta"><span>{project.number}</span>{project.category}</p>
+        <p className="project-meta"><span className="project-number"><WaveWords>{project.number}</WaveWords></span><span className="project-category"><WaveWords>{project.category}</WaveWords></span></p>
         <h3><WaveWords>{project.title}</WaveWords></h3>
         <p className="project-description"><WaveWords>{project.description}</WaveWords></p>
         <div className="project-footer">
-          <div className="project-tags" aria-label={'Technologies used for ' + project.title}>{project.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-          <a className="project-link" href={project.url} target="_blank" rel="noopener noreferrer" data-cursor="OPEN" aria-label={project.cta + ': ' + project.title}><span><WaveWords>{project.cta}</WaveWords></span><Icon name="external" size={14} /></a>
+          <div className="project-tags" aria-label={'Technologies used for ' + project.title}>{project.tags.map((tag) => <span key={tag}><WaveWords>{tag}</WaveWords></span>)}</div>
+          {project.url && (
+            <a className="project-link" href={project.url} target="_blank" rel="noopener noreferrer" data-cursor="OPEN" aria-label={project.cta + ': ' + project.title}><span><WaveWords>{project.cta}</WaveWords></span><Icon name="external" size={14} /></a>
+          )}
         </div>
       </div>
       <ProjectProof project={project} />
@@ -134,23 +137,32 @@ function ProjectCard({ project, index }) {
 
 export default function Work() {
   const reduceMotion = useReducedMotion()
+  const { content } = usePortfolioContent()
+  const { work } = content
+  const projects = content.projects
+    .filter((project) => project.enabled !== false)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((project, index) => ({ ...project, number: String(index + 1).padStart(2, '0') }))
+  const workCapabilities = (content.capabilities || capabilities)
+    .filter((capability) => capability.enabled !== false)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
   return (
     <section className="work section-shell" id="work">
-      <div className="section-heading"><span>04</span><p>Projects and focus</p></div>
+      <div className="section-heading"><span><WaveWords>{work.sectionNumber}</WaveWords></span><p><WaveWords>{work.sectionLabel}</WaveWords></p></div>
       <div className="work-heading">
         <div>
-          <h2><WaveWords>Building systems that<br /><i>serve with confidence.</i></WaveWords></h2>
+          <h2><WaveWords>{work.headingLineOne}<br /><i>{work.headingAccent}</i></WaveWords></h2>
         </div>
-        <a href="mailto:tusharanand303@gmail.com" className="text-link"><span><WaveWords>Discuss a project</WaveWords></span><Icon name="arrow" size={16} /></a>
+        <a href={work.discussionAction.href} className="text-link"><span><WaveWords>{work.discussionAction.label}</WaveWords></span><Icon name="arrow" size={16} /></a>
       </div>
       <div className="project-list">
-        {projects.map((project, index) => <ProjectCard project={project} index={index} key={project.number} />)}
+        {projects.map((project, index) => <ProjectCard project={project} index={index} key={project.id || project.number} />)}
       </div>
       <div className="capabilities">
-        <div className="capabilities-heading"><p className="eyebrow"><span className="pulse" /><span><WaveWords>Engineering focus</WaveWords></span></p><h3><WaveWords>Across the full<br /><i>application stack.</i></WaveWords></h3></div>
+        <div className="capabilities-heading"><p className="eyebrow"><span className="pulse" /><span><WaveWords>{work.focusEyebrow}</WaveWords></span></p><h3><WaveWords>{work.focusHeadingLineOne}<br /><i>{work.focusHeadingAccent}</i></WaveWords></h3></div>
         <div className="capability-grid">
-          {capabilities.map((capability, index) => <motion.article className="capability-card" whileHover={reduceMotion ? undefined : { y: -6 }} transition={{ type: 'spring', stiffness: 260, damping: 22 }} key={capability.title}><span><WaveWords>{`0${index + 1}`}</WaveWords></span><h4><WaveWords>{capability.title}</WaveWords></h4><p><WaveWords>{capability.description}</WaveWords></p></motion.article>)}
+          {workCapabilities.map((capability, index) => <motion.article className="capability-card" whileHover={reduceMotion ? undefined : { y: -6 }} transition={{ type: 'spring', stiffness: 260, damping: 22 }} key={capability.id || capability.title}><span><WaveWords>{`0${index + 1}`}</WaveWords></span><h4><WaveWords>{capability.title}</WaveWords></h4><p><WaveWords>{capability.description}</WaveWords></p></motion.article>)}
         </div>
       </div>
     </section>

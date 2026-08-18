@@ -53,7 +53,7 @@ export default function Playground() {
 
   return (
     <section className="playground section-shell" id="playground">
-      <div className="section-heading"><span>05</span><p>Try it yourself</p></div>
+      <div className="section-heading"><span><WaveWords>05</WaveWords></span><p><WaveWords>Try it yourself</WaveWords></p></div>
       <div className="playground-heading">
         <h2><WaveWords>Pick a thing to build.<br /><i>I'll show you how I think.</i></WaveWords></h2>
         <p><WaveWords>This bit is yours. Click around — the answer changes.</WaveWords></p>
@@ -89,7 +89,7 @@ export default function Playground() {
               transition={{ duration: reduceMotion ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
               <div className="playground-copy">
-                <p className="playground-eyebrow"><span /> {activeMode.eyebrow}</p>
+                <p className="playground-eyebrow"><span className="playground-dot" /><span className="playground-eyebrow-copy"><WaveWords>{activeMode.eyebrow}</WaveWords></span></p>
                 <h3><WaveWords>{activeMode.title}</WaveWords></h3>
                 <p><WaveWords>{activeMode.copy}</WaveWords></p>
                 <div className="playground-stack">
@@ -100,7 +100,7 @@ export default function Playground() {
                       transition={{ delay: reduceMotion ? 0 : 0.1 + index * 0.06 }}
                       key={item}
                     >
-                      {item}
+                      <WaveWords>{item}</WaveWords>
                     </motion.span>
                   ))}
                 </div>
@@ -132,8 +132,8 @@ export default function Playground() {
                   animate={reduceMotion ? undefined : { scale: [1, 1.08, 1], opacity: [0.75, 1, 0.75] }}
                   transition={{ duration: 2.2, repeat: Infinity }}
                 >
-                  <span />
-                  {activeMode.note}
+                  <span className="console-signal-dot" />
+                  <span className="console-signal-copy"><WaveWords>{activeMode.note}</WaveWords></span>
                 </motion.div>
               </div>
             </motion.div>

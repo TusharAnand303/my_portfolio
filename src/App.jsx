@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { MotionConfig, motion, useScroll, useSpring } from 'motion/react'
 import Header from './components/Header'
 import Hero from './components/Hero'
@@ -12,8 +12,16 @@ import Contact from './components/Contact'
 import Icon from './components/Icon'
 import CursorDot from './components/CursorDot'
 import PageRipple from './components/PageRipple'
+import { PortfolioContentProvider } from './context/PortfolioContentContext'
 
-export default function App() {
+const AdminApp = lazy(() => import('./admin/AdminApp'))
+
+const isAdminHash = () => {
+  if (typeof window === 'undefined') return false
+  return ['#admin', '#/admin'].includes(window.location.hash.toLowerCase())
+}
+
+function PortfolioSite() {
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [pageRipple, setPageRipple] = useState(null)
   const { scrollYProgress } = useScroll()
@@ -76,5 +84,29 @@ export default function App() {
         </motion.button>
       </main>
     </MotionConfig>
+  )
+}
+
+export default function App() {
+  const [adminMode, setAdminMode] = useState(isAdminHash)
+
+  useEffect(() => {
+    const handleHashChange = () => setAdminMode(isAdminHash())
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  if (adminMode) {
+    return (
+      <Suspense fallback={<div className="admin-loading" role="status">Opening private studio...</div>}>
+        <AdminApp />
+      </Suspense>
+    )
+  }
+
+  return (
+    <PortfolioContentProvider>
+      <PortfolioSite />
+    </PortfolioContentProvider>
   )
 }
