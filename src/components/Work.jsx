@@ -1,28 +1,157 @@
 import Icon from './Icon'
+import WaveWords from './WaveWords'
+import { motion, useReducedMotion } from 'motion/react'
 
-const work = [
-  { number: '01', type: 'GOVERNMENT PORTAL - LARAVEL / POSTGRESQL', title: 'High Court of Jharkhand Website.', description: 'Contributing to the digital presence of the High Court of Jharkhand through reliable web engineering and backend-focused development.', tags: ['Laravel', 'PostgreSQL', 'PHP'], accent: 'lime', visual: 'dashboard' },
-  { number: '02', type: 'CITIZEN SERVICE - HIGH COURT PROJECT', title: 'Online Certified Application.', description: 'Working on an online application service designed to support clear, accessible, and dependable certificate-related workflows.', tags: ['Laravel', 'REST APIs', 'Workflows'], accent: 'coral', visual: 'metrics' },
-  { number: '03', type: 'ORGANISATION WEBSITE - LIVE PROJECT', title: 'Hazaribag Jesuits Website.', description: 'Developed the public-facing website for Hazaribag Jesuits, creating a clear and accessible online presence for the organisation.', tags: ['Web Development', 'Responsive UI', 'Live Website'], accent: 'blue', visual: 'chart', url: 'https://hazaribagjesuits.org/' },
-  { number: '04', type: 'CHROME EXTENSION - DEVELOPER TOOL', title: 'TruAPI - API Tester.', description: 'A Chrome extension I built to make API testing quick, reliable, and accessible directly in the browser.', tags: ['Chrome Extension', 'API Testing', 'Developer Tool'], accent: 'lime', visual: 'metrics', url: 'https://chromewebstore.google.com/detail/truapi-api-tester/mdojkabelcmomcjapnlbhmioeneeeomb', cta: 'Install TruAPI' },
-  { number: '05', type: 'ENGINEERING FOCUS - SECURE BACKENDS', title: 'Reliable data-driven application systems.', description: 'Designing and maintaining application layers that connect structured data, business logic, and dependable user journeys.', tags: ['PostgreSQL', 'Data Modeling', 'Security'], accent: 'lime', visual: 'dashboard' },
-  { number: '06', type: 'ENGINEERING FOCUS - WEB PLATFORMS', title: 'Responsive platforms for everyday access.', description: 'Creating maintainable web experiences with clean backend integrations and a focus on performance and clarity.', tags: ['Laravel', 'JavaScript', 'Responsive UI'], accent: 'coral', visual: 'metrics' },
-  { number: '07', type: 'ENGINEERING FOCUS - APPLICATION DELIVERY', title: 'From requirements to dependable delivery.', description: 'Bringing together application development experience from public sector, remote, and enterprise technology environments.', tags: ['PHP', 'Git', 'System Design'], accent: 'blue', visual: 'chart' },
+const projects = [
+  {
+    number: '01',
+    category: 'Government portal - Laravel / PostgreSQL',
+    title: 'High Court of Jharkhand Website.',
+    description: 'Contributing to the digital presence of the High Court of Jharkhand through reliable web engineering and backend-focused development.',
+    tags: ['Laravel', 'PostgreSQL', 'PHP'],
+    accent: 'lime',
+    url: 'https://jharkhandhighcourt.nic.in/',
+    cta: 'Visit official website',
+    facts: [
+      { label: 'Contribution', value: 'Technical team lead' },
+      { label: 'Focus', value: 'Public information access' },
+      { label: 'Delivery', value: 'Official live website' },
+    ],
+    preview: {
+      eyebrow: 'Official service',
+      title: 'Reliable access to official court information.',
+      steps: ['Find information', 'Review details', 'Access the service'],
+    },
+  },
+  {
+    number: '02',
+    category: 'Citizen service - High Court project',
+    title: 'Online Certified Application.',
+    description: 'Working on an online application service designed to support clear, accessible, and dependable certificate-related workflows.',
+    tags: ['Laravel', 'REST APIs', 'Workflows'],
+    accent: 'coral',
+    url: 'https://jharkhandhighcourt.nic.in/occ/public/home.php',
+    cta: 'Open certified-copy service',
+    facts: [
+      { label: 'Contribution', value: 'Application workflow team' },
+      { label: 'Focus', value: 'Clear citizen service journey' },
+      { label: 'Delivery', value: 'High Court online service' },
+    ],
+    preview: {
+      eyebrow: 'Online service',
+      title: 'A clear route through a formal request.',
+      steps: ['Choose the copy', 'Provide details', 'Follow the request'],
+    },
+  },
+  {
+    number: '03',
+    category: 'Organisation website - Live project',
+    title: 'Hazaribag Jesuits Website.',
+    description: 'Developed the public-facing website for Hazaribag Jesuits, creating a clear and accessible online presence for the organisation.',
+    tags: ['Web Development', 'Responsive UI', 'Live Website'],
+    accent: 'blue',
+    url: 'https://hazaribagjesuits.org/',
+    cta: 'Visit live website',
+    facts: [
+      { label: 'Contribution', value: 'Website development' },
+      { label: 'Focus', value: 'Responsive content experience' },
+      { label: 'Delivery', value: 'Live organisation website' },
+    ],
+    preview: {
+      eyebrow: 'Organisation website',
+      title: 'A responsive public presence for the organisation.',
+      steps: ['Understand the organisation', 'Explore its work', 'Find key information'],
+    },
+  },
+  {
+    number: '04',
+    category: 'Chrome extension - Developer tool',
+    title: 'TruAPI - API Tester.',
+    description: 'A Chrome extension I built to make API testing quick, reliable, and accessible directly in the browser.',
+    tags: ['Chrome Extension', 'API Testing', 'Developer Tool'],
+    accent: 'lime',
+    url: 'https://chromewebstore.google.com/detail/truapi-api-tester/mdojkabelcmomcjapnlbhmioeneeeomb',
+    cta: 'Install TruAPI',
+    facts: [
+      { label: 'Contribution', value: 'Creator and developer' },
+      { label: 'Focus', value: 'Browser-based API testing' },
+      { label: 'Delivery', value: 'Chrome Web Store' },
+    ],
+    preview: {
+      eyebrow: 'Developer utility',
+      title: 'Focused API testing inside the browser.',
+      steps: ['Build the request', 'Test the endpoint', 'Inspect the response'],
+    },
+  },
 ]
 
-function ProjectVisual({ type }) {
-  if (type === 'dashboard') return <div className="project-visual ui-dashboard"><div className="ui-sidebar"><b /> <b /> <b /> <b /></div><div className="ui-main"><div className="ui-topline"><i /><i /></div><div className="ui-cards"><span /><span /><span /></div><div className="ui-table"><b /><b /><b /><b /></div></div></div>
-  if (type === 'metrics') return <div className="project-visual ui-metrics"><div className="metric-ring"><span>98<small>%</small></span></div><div className="metric-lines"><b /><b /><b /><b /><b /><b /></div><div className="metric-bottom"><i /><i /><i /></div></div>
-  return <div className="project-visual ui-chart"><div className="chart-grid"><i /><i /><i /><i /></div><svg viewBox="0 0 360 160" preserveAspectRatio="none"><path d="M0,138 C40,115 52,125 79,104 S123,110 150,77 S205,95 225,65 S277,76 300,39 S334,49 360,15" /></svg><div className="chart-labels"><span>MON</span><span>WED</span><span>FRI</span><span>SUN</span></div></div>
+const capabilities = [
+  { title: 'Reliable data-driven application systems.', description: 'Designing and maintaining application layers that connect structured data, business logic, and dependable user journeys.' },
+  { title: 'Responsive platforms for everyday access.', description: 'Creating maintainable web experiences with clean backend integrations and a focus on performance and clarity.' },
+  { title: 'From requirements to dependable delivery.', description: 'Bringing together application development experience from public sector, remote, and enterprise technology environments.' },
+]
+
+function ProjectProof({ project }) {
+  return (
+    <div className="project-proof">
+      <p className="proof-kicker"><WaveWords>{project.preview.eyebrow}</WaveWords></p>
+      <h4><WaveWords>{project.preview.title}</WaveWords></h4>
+      <ol className="proof-steps">
+        {project.preview.steps.map((step, index) => <li key={step}><span>0{index + 1}</span>{step}</li>)}
+      </ol>
+      <dl className="project-facts">
+        {project.facts.map((fact) => <div key={fact.label}><dt><WaveWords>{fact.label}</WaveWords></dt><dd><WaveWords>{fact.value}</WaveWords></dd></div>)}
+      </dl>
+    </div>
+  )
+}
+
+function ProjectCard({ project, index }) {
+  const reduceMotion = useReducedMotion()
+
+  return (
+    <motion.article
+      className={'project project-' + project.accent}
+      initial={reduceMotion ? false : { opacity: 0, y: 34 }}
+      whileInView={{ opacity: 1, y: 0, transition: { duration: reduceMotion ? 0 : 0.42, delay: reduceMotion ? 0 : index * 0.035, ease: [0.22, 1, 0.36, 1] } }}
+      whileHover={reduceMotion ? undefined : { y: -4, transition: { type: 'spring', stiffness: 430, damping: 32, mass: 0.35 } }}
+      viewport={{ once: true, amount: 0.18 }}
+      data-cursor="VIEW"
+    >
+      <div className="project-info">
+        <p className="project-meta"><span>{project.number}</span>{project.category}</p>
+        <h3><WaveWords>{project.title}</WaveWords></h3>
+        <p className="project-description"><WaveWords>{project.description}</WaveWords></p>
+        <div className="project-footer">
+          <div className="project-tags" aria-label={'Technologies used for ' + project.title}>{project.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+          <a className="project-link" href={project.url} target="_blank" rel="noopener noreferrer" data-cursor="OPEN" aria-label={project.cta + ': ' + project.title}><span><WaveWords>{project.cta}</WaveWords></span><Icon name="external" size={14} /></a>
+        </div>
+      </div>
+      <ProjectProof project={project} />
+    </motion.article>
+  )
 }
 
 export default function Work() {
+  const reduceMotion = useReducedMotion()
+
   return (
     <section className="work section-shell" id="work">
       <div className="section-heading"><span>04</span><p>Projects and focus</p></div>
-      <div className="work-heading"><h2>Building systems that<br /><i>serve with confidence.</i></h2><a href="mailto:tusharanand303@gmai.com" className="text-link">Discuss a project <Icon name="arrow" size={16} /></a></div>
+      <div className="work-heading">
+        <div>
+          <h2><WaveWords>Building systems that<br /><i>serve with confidence.</i></WaveWords></h2>
+        </div>
+        <a href="mailto:tusharanand303@gmail.com" className="text-link"><span><WaveWords>Discuss a project</WaveWords></span><Icon name="arrow" size={16} /></a>
+      </div>
       <div className="project-list">
-        {work.map(project => <article className={`project project-${project.accent}`} key={project.number}><div className="project-info"><p className="project-meta"><span>{project.number}</span>{project.type}</p><h3>{project.title}</h3><p className="project-description">{project.description}</p><div className="project-footer"><div>{project.tags.map(tag => <span key={tag}>{tag}</span>)}</div><a className={project.cta ? 'project-install' : undefined} href={project.url || '#contact'} target={project.url ? '_blank' : undefined} rel={project.url ? 'noreferrer' : undefined} aria-label={project.url ? `Visit ${project.title}` : `Talk about ${project.title}`}>{project.cta && <span>{project.cta}</span>}<Icon name={project.url ? 'external' : 'arrow'} size={project.cta ? 15 : 20} /></a></div></div><ProjectVisual type={project.visual} /></article>)}
+        {projects.map((project, index) => <ProjectCard project={project} index={index} key={project.number} />)}
+      </div>
+      <div className="capabilities">
+        <div className="capabilities-heading"><p className="eyebrow"><span className="pulse" /><span><WaveWords>Engineering focus</WaveWords></span></p><h3><WaveWords>Across the full<br /><i>application stack.</i></WaveWords></h3></div>
+        <div className="capability-grid">
+          {capabilities.map((capability, index) => <motion.article className="capability-card" whileHover={reduceMotion ? undefined : { y: -6 }} transition={{ type: 'spring', stiffness: 260, damping: 22 }} key={capability.title}><span><WaveWords>{`0${index + 1}`}</WaveWords></span><h4><WaveWords>{capability.title}</WaveWords></h4><p><WaveWords>{capability.description}</WaveWords></p></motion.article>)}
+        </div>
       </div>
     </section>
   )

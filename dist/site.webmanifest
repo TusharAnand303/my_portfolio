@@ -1,0 +1,17 @@
+{
+  "name": "Tushar Anand Portfolio",
+  "short_name": "Tushar Anand",
+  "description": "Portfolio of Tushar Anand, a full-stack web developer in Ranchi, Jharkhand.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#f5f3ec",
+  "theme_color": "#11130f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
