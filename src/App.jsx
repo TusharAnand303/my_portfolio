@@ -16,9 +16,10 @@ import { PortfolioContentProvider } from './context/PortfolioContentContext'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
-const isAdminHash = () => {
+const isAdminRoute = () => {
   if (typeof window === 'undefined') return false
-  return ['#admin', '#/admin'].includes(window.location.hash.toLowerCase())
+  return window.location.pathname.replace(/\/$/, '').toLowerCase() === '/admin'
+    || ['#admin', '#/admin'].includes(window.location.hash.toLowerCase())
 }
 
 function PortfolioSite() {
@@ -88,12 +89,16 @@ function PortfolioSite() {
 }
 
 export default function App() {
-  const [adminMode, setAdminMode] = useState(isAdminHash)
+  const [adminMode, setAdminMode] = useState(isAdminRoute)
 
   useEffect(() => {
-    const handleHashChange = () => setAdminMode(isAdminHash())
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
+    const handleRouteChange = () => setAdminMode(isAdminRoute())
+    window.addEventListener('hashchange', handleRouteChange)
+    window.addEventListener('popstate', handleRouteChange)
+    return () => {
+      window.removeEventListener('hashchange', handleRouteChange)
+      window.removeEventListener('popstate', handleRouteChange)
+    }
   }, [])
 
   if (adminMode) {
