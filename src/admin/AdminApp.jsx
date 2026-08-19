@@ -322,36 +322,81 @@ function HeroEditor({ value, onChange }) {
   )
 }
 
+function ImageAdjustDialog({ draft, zoom, position, onZoomChange, onPositionChange, onCancel, onApply }) {
+  const dialogRef = useRef(null)
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!draft || !dialog) return undefined
+    if (!dialog.open) dialog.showModal()
+    return () => {
+      if (dialog.open) dialog.close()
+    }
+  }, [draft])
+
+  if (!draft) return null
+
+  return (
+    <dialog ref={dialogRef} className="admin-dialog admin-image-dialog" onCancel={(event) => { event.preventDefault(); onCancel() }}>
+      <p className="admin-kicker">Profile image</p>
+      <h2>Frame your photo</h2>
+      <p className="admin-dialog-copy">Adjust the crop before uploading. The circular preview shows how it will appear.</p>
+      <div className="admin-image-crop-preview">
+        <img
+          src={draft.previewUrl}
+          alt="Selected profile image crop preview"
+          style={{ transform: `translate(${position.x}%, ${position.y}%) scale(${zoom})` }}
+        />
+      </div>
+      <div className="admin-image-adjust-fields">
+        <label className="admin-image-zoom">
+          <span>Zoom</span>
+          <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => onZoomChange(Number(event.target.value))} />
+          <output>{zoom.toFixed(2)}×</output>
+        </label>
+        <label className="admin-image-zoom">
+          <span>Left / right</span>
+          <input type="range" min="-20" max="20" step="1" value={position.x} onChange={(event) => onPositionChange({ ...position, x: Number(event.target.value) })} />
+          <output>{position.x}</output>
+        </label>
+        <label className="admin-image-zoom">
+          <span>Up / down</span>
+          <input type="range" min="-20" max="20" step="1" value={position.y} onChange={(event) => onPositionChange({ ...position, y: Number(event.target.value) })} />
+          <output>{position.y}</output>
+        </label>
+      </div>
+      <div className="admin-dialog-actions">
+        <button type="button" className="admin-secondary" onClick={onCancel}>Cancel</button>
+        <button type="button" className="admin-primary" onClick={onApply}>Upload this crop</button>
+      </div>
+    </dialog>
+  )
+}
+
 function AssetUploader({ kind, current, onUploaded, onRequestRemove }) {
   const inputId = useId()
   const [progress, setProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [imageDraft, setImageDraft] = useState(null)
+  const [zoom, setZoom] = useState(1)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
   const taskRef = useRef(null)
+  const imageDraftRef = useRef(null)
   const isImage = kind === 'image'
   const maxBytes = isImage ? 5 * 1024 * 1024 : 10 * 1024 * 1024
   const accept = isImage ? 'image/jpeg,image/png,image/webp' : 'application/pdf,.pdf'
 
-  useEffect(() => () => taskRef.current?.abort(), [])
+  useEffect(() => {
+    imageDraftRef.current = imageDraft
+  }, [imageDraft])
 
-  const chooseFile = (event) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
+  useEffect(() => () => {
+    taskRef.current?.abort()
+    if (imageDraftRef.current?.previewUrl) URL.revokeObjectURL(imageDraftRef.current.previewUrl)
+  }, [])
 
-    const validType = isImage
-      ? ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-      : file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-
-    if (!validType) {
-      setError(isImage ? 'Choose a JPG, PNG or WebP image.' : 'Choose a PDF file.')
-      return
-    }
-    if (file.size > maxBytes) {
-      setError(`Keep this file under ${isImage ? '5 MB' : '10 MB'}.`)
-      return
-    }
-
+  const uploadFile = (file) => {
     setError('')
     setProgress(0)
     setUploading(true)
@@ -382,9 +427,7 @@ function AssetUploader({ kind, current, onUploaded, onRequestRemove }) {
     taskRef.current = request
     request.open('POST', `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/${isImage ? 'image' : 'raw'}/upload`)
     request.upload.addEventListener('progress', (progressEvent) => {
-      if (progressEvent.lengthComputable) {
-        setProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100))
-      }
+      if (progressEvent.lengthComputable) setProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100))
     })
     request.addEventListener('error', () => {
       setUploading(false)
@@ -423,11 +466,69 @@ function AssetUploader({ kind, current, onUploaded, onRequestRemove }) {
     request.send(formData)
   }
 
+  const createZoomedImage = async () => {
+    if (!imageDraft) return
+    const image = new Image()
+    image.src = imageDraft.previewUrl
+    await new Promise((resolve, reject) => {
+      image.onload = resolve
+      image.onerror = reject
+    })
+    const side = Math.min(image.naturalWidth, image.naturalHeight)
+    const cropSide = side / zoom
+    const sourceX = (image.naturalWidth - cropSide) / 2 - ((position.x / 20) * (image.naturalWidth - cropSide) / 2)
+    const sourceY = (image.naturalHeight - cropSide) / 2 - ((position.y / 20) * (image.naturalHeight - cropSide) / 2)
+    const canvas = document.createElement('canvas')
+    canvas.width = 1200
+    canvas.height = 1200
+    canvas.getContext('2d').drawImage(image, sourceX, sourceY, cropSide, cropSide, 0, 0, canvas.width, canvas.height)
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setError('Could not prepare the cropped image. Please try again.')
+        return
+      }
+      uploadFile(new File([blob], imageDraft.file.name, { type: 'image/jpeg' }))
+      URL.revokeObjectURL(imageDraft.previewUrl)
+      setImageDraft(null)
+    }, 'image/jpeg', 0.92)
+  }
+
+  const chooseFile = (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    const validType = isImage
+      ? ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+      : file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+    if (!validType) {
+      setError(isImage ? 'Choose a JPG, PNG or WebP image.' : 'Choose a PDF file.')
+      return
+    }
+    if (file.size > maxBytes) {
+      setError(`Keep this file under ${isImage ? '5 MB' : '10 MB'}.`)
+      return
+    }
+
+    if (isImage) {
+      const previewUrl = URL.createObjectURL(file)
+      setImageDraft({ file, previewUrl })
+      setZoom(1)
+      setPosition({ x: 0, y: 0 })
+      setError('')
+      return
+    }
+
+    uploadFile(file)
+  }
+
   return (
     <div className="admin-uploader">
       {isImage && current?.url && (
         <div className="admin-image-preview"><img src={current.url} alt="Current profile preview" /></div>
       )}
+      {isImage && <ImageAdjustDialog draft={imageDraft} zoom={zoom} position={position} onZoomChange={setZoom} onPositionChange={setPosition} onCancel={() => { if (imageDraft) URL.revokeObjectURL(imageDraft.previewUrl); setImageDraft(null) }} onApply={createZoomedImage} />}
       {!isImage && current?.url && (
         <a className="admin-file-preview" href={current.url} target="_blank" rel="noreferrer">
           <span aria-hidden="true">PDF</span>

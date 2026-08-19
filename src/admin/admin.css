@@ -560,6 +560,60 @@
   object-fit: cover;
 }
 
+.admin-image-adjuster {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--admin-line-strong);
+  background: var(--admin-paper-deep);
+}
+
+.admin-image-crop-preview {
+  width: min(100%, 270px);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 50%;
+  background: var(--admin-paper);
+}
+
+.admin-image-crop-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center;
+}
+
+.admin-image-zoom {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-image-zoom input {
+  width: 100%;
+  accent-color: var(--admin-lime);
+}
+
+.admin-image-zoom output {
+  min-width: 38px;
+  color: var(--admin-muted);
+  font-family: var(--mono, 'DM Mono', monospace);
+  font-size: 11px;
+  text-align: right;
+}
+
+.admin-image-adjust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
 .admin-image-history {
   display: grid;
   gap: 10px;
@@ -940,6 +994,33 @@
 .admin-dialog h2 { font-size: 31px; line-height: 1; }
 .admin-dialog > p:not(.admin-kicker) { margin: 15px 0 24px; color: var(--admin-muted); font-size: 13px; line-height: 1.55; }
 .admin-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.admin-image-dialog {
+  width: min(calc(100% - 28px), 540px);
+  padding: clamp(20px, 4vw, 32px);
+}
+
+.admin-image-dialog .admin-image-crop-preview {
+  width: min(100%, 320px);
+  margin: 4px auto 24px;
+  border-color: var(--admin-ink);
+  box-shadow: 7px 7px 0 var(--admin-lime);
+}
+
+.admin-image-dialog .admin-image-crop-preview img {
+  transform-origin: center;
+}
+
+.admin-image-adjust-fields {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 16px 0;
+  border-top: 1px solid var(--admin-line);
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.admin-image-dialog .admin-dialog-actions button { min-height: 48px; }
 
 @media (min-width: 640px) {
   .admin-content { padding-inline: 24px; }
