@@ -7,8 +7,7 @@ import {
   signOut,
 } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
-import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage'
-import { auth, db, storage } from '../../firebase.js'
+import { auth, db } from '../../firebase.js'
 import {
   defaultPortfolioContent,
   normalizePortfolioContent,
@@ -23,6 +22,20 @@ const tabs = [
   { id: 'projects', label: 'Projects' },
   { id: 'files', label: 'Files' },
 ]
+
+const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+
+const deleteCloudinaryUpload = async (deleteToken) => {
+  if (!deleteToken) return false
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/delete_by_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: deleteToken }),
+  })
+  if (!response.ok) throw new Error('Cloudinary could not delete this asset.')
+  return true
+}
 
 const clone = (value) => {
   if (typeof structuredClone === 'function') return structuredClone(value)
@@ -237,6 +250,23 @@ function LoadingScreen({ label = 'Opening your studio…' }) {
   )
 }
 
+function ContentLoadError({ message, onRetry, onLogout }) {
+  return (
+    <main className="admin-root admin-login-shell">
+      <section className="admin-login admin-load-error" aria-labelledby="admin-load-error-title">
+        <p className="admin-private-mark"><span>TA</span> Private studio</p>
+        <p className="admin-kicker">Portfolio content</p>
+        <h1 id="admin-load-error-title">Nothing was changed.</h1>
+        <p className="admin-login-copy">{message}</p>
+        <div className="admin-login-actions">
+          <button type="button" className="admin-primary" onClick={onRetry}>Try again</button>
+          <button type="button" className="admin-secondary" onClick={onLogout}>Log out</button>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function SectionCard({ eyebrow, title, description, children }) {
   return (
     <section className="admin-card">
@@ -302,7 +332,7 @@ function AssetUploader({ kind, current, onUploaded, onRequestRemove }) {
   const maxBytes = isImage ? 5 * 1024 * 1024 : 10 * 1024 * 1024
   const accept = isImage ? 'image/jpeg,image/png,image/webp' : 'application/pdf,.pdf'
 
-  useEffect(() => () => taskRef.current?.cancel(), [])
+  useEffect(() => () => taskRef.current?.abort(), [])
 
   const chooseFile = (event) => {
     const file = event.target.files?.[0]
@@ -331,48 +361,66 @@ function AssetUploader({ kind, current, onUploaded, onRequestRemove }) {
       .replace(/[^a-zA-Z0-9._-]+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
-    const sourceBase = normalizedName.replace(/\.[^.]+$/, '').slice(0, 72)
     const imageExtension = file.type === 'image/png' ? '.png' : file.type === 'image/webp' ? '.webp' : '.jpg'
+    const sourceBase = normalizedName.replace(/\.[^.]+$/, '').slice(0, 72)
     const safeName = `${sourceBase || (isImage ? 'profile-image' : 'resume')}${isImage ? imageExtension : '.pdf'}`
-    const folder = isImage ? 'profile' : 'resume'
-    const path = `portfolio/${folder}/${Date.now()}-${safeName}`
-    const fileRef = storageRef(storage, path)
-    const metadata = isImage
-      ? { contentType: file.type }
-      : {
-          contentType: 'application/pdf',
-          contentDisposition: `attachment; filename="${safeName.replace(/"/g, '')}"`,
-        }
-    const task = uploadBytesResumable(fileRef, file, metadata)
-    taskRef.current = task
 
-    task.on(
-      'state_changed',
-      (snapshot) => setProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)),
-      (uploadError) => {
+    if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
+      setUploading(false)
+      setError('Cloudinary is not configured. Add the cloud name and unsigned upload preset to your .env file.')
+      return
+    }
+
+    const folder = isImage ? 'portfolio/profile' : 'portfolio/resume'
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', cloudinaryUploadPreset)
+    formData.append('folder', folder)
+    formData.append('public_id', `${Date.now()}-${safeName.replace(/\.[^.]+$/, '')}${isImage ? '' : '.pdf'}`)
+
+    const request = new XMLHttpRequest()
+    taskRef.current = request
+    request.open('POST', `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/${isImage ? 'image' : 'raw'}/upload`)
+    request.upload.addEventListener('progress', (progressEvent) => {
+      if (progressEvent.lengthComputable) {
+        setProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100))
+      }
+    })
+    request.addEventListener('error', () => {
+      setUploading(false)
+      setError('Upload failed. Check your connection and Cloudinary settings, then try again.')
+    })
+    request.addEventListener('abort', () => {
+      setUploading(false)
+      setError('Upload cancelled.')
+    })
+    request.addEventListener('load', () => {
+      if (request.status < 200 || request.status >= 300) {
         setUploading(false)
-        setError(uploadError?.code === 'storage/canceled' ? 'Upload cancelled.' : 'Upload failed. Check your connection and try again.')
-      },
-      async () => {
-        try {
-          const downloadUrl = await getDownloadURL(task.snapshot.ref)
-          onUploaded({
-            downloadUrl,
-            storagePath: path,
-            originalName: file.name,
-            size: file.size,
-            contentType: isImage ? file.type : 'application/pdf',
-            updatedAt: new Date().toISOString(),
-          })
-          setProgress(100)
-        } catch {
-          setError('The file uploaded, but its download link could not be created. Please try again.')
-        } finally {
-          setUploading(false)
-          taskRef.current = null
-        }
-      },
-    )
+        setError('Upload failed. Check that the Cloudinary upload preset is unsigned and allows PDF raw uploads.')
+        return
+      }
+
+      try {
+        const result = JSON.parse(request.responseText)
+        onUploaded({
+          downloadUrl: result.secure_url,
+          storagePath: result.public_id,
+          deleteToken: result.delete_token || '',
+          originalName: file.name,
+          size: file.size,
+          contentType: isImage ? file.type : 'application/pdf',
+          updatedAt: new Date().toISOString(),
+        })
+        setProgress(100)
+      } catch {
+        setError('The file uploaded, but Cloudinary returned an invalid response. Please try again.')
+      } finally {
+        setUploading(false)
+        taskRef.current = null
+      }
+    })
+    request.send(formData)
   }
 
   return (
@@ -405,6 +453,7 @@ function AssetUploader({ kind, current, onUploaded, onRequestRemove }) {
 
 function ProfileEditor({ value, onChange, requestConfirm, notify }) {
   const profile = value || {}
+  const imageHistory = Array.isArray(profile.imageHistory) ? profile.imageHistory : []
   const details = profile.details || {}
   const snapshot = Array.isArray(profile.snapshot) ? profile.snapshot : []
   const update = (key, nextValue) => onChange({ ...profile, [key]: nextValue })
@@ -416,11 +465,20 @@ function ProfileEditor({ value, onChange, requestConfirm, notify }) {
   }
 
   const uploaded = (asset) => {
+    const nextImage = {
+      url: asset.downloadUrl,
+      path: asset.storagePath,
+      deleteToken: asset.deleteToken,
+      name: asset.originalName,
+      uploadedAt: asset.updatedAt,
+    }
+    const history = [nextImage, ...imageHistory.filter((image) => image.url !== nextImage.url)]
     onChange({
       ...profile,
       imageUrl: asset.downloadUrl,
       imagePath: asset.storagePath,
       imageName: asset.originalName,
+      imageHistory: history,
     })
     notify('Image uploaded. Save the draft when you are ready.')
   }
@@ -433,6 +491,46 @@ function ProfileEditor({ value, onChange, requestConfirm, notify }) {
     onConfirm: () => onChange({ ...profile, imageUrl: '', imagePath: '', imageName: '' }),
   })
 
+  const selectImage = (image) => onChange({
+    ...profile,
+    imageUrl: image.url,
+    imagePath: image.path,
+    imageName: image.name,
+  })
+
+  const requestDeleteImage = (image) => requestConfirm({
+    title: 'Delete this Cloudinary image?',
+    description: image.deleteToken
+      ? 'This will delete the image from Cloudinary and remove it from your studio history.'
+      : 'This older upload has no active delete token. Remove it from the studio history, then delete the file manually in Cloudinary.',
+    confirmLabel: 'Delete image',
+    danger: true,
+    onConfirm: async () => {
+      if (image.deleteToken) {
+        try {
+          await deleteCloudinaryUpload(image.deleteToken)
+        } catch (error) {
+          notify(error.message || 'Cloudinary could not delete this image.', 'error')
+          throw error
+        }
+      }
+      removeImage(image)
+    },
+  })
+
+  const removeImage = (image) => {
+    const nextHistory = imageHistory.filter((item) => item.url !== image.url)
+    const isCurrent = profile.imageUrl === image.url
+    const replacement = isCurrent ? nextHistory[0] : null
+    onChange({
+      ...profile,
+      imageUrl: replacement?.url || (isCurrent ? '' : profile.imageUrl),
+      imagePath: replacement?.path || (isCurrent ? '' : profile.imagePath),
+      imageName: replacement?.name || (isCurrent ? '' : profile.imageName),
+      imageHistory: nextHistory,
+    })
+  }
+
   return (
     <>
       <SectionCard eyebrow="02 / Profile" title="Photo and profile" description="Keep your role, location and recruiter summary current.">
@@ -443,6 +541,24 @@ function ProfileEditor({ value, onChange, requestConfirm, notify }) {
             onUploaded={uploaded}
             onRequestRemove={requestRemove}
           />
+          {imageHistory.length > 0 && (
+            <div className="admin-image-history" aria-label="Previously uploaded profile images">
+              <div className="admin-image-history-heading">
+                <strong>Previous images</strong>
+                <small>Select one to make it the profile picture.</small>
+              </div>
+              <div className="admin-image-history-grid">
+                {imageHistory.map((image) => (
+                  <div className={`admin-image-history-item${profile.imageUrl === image.url ? ' is-current' : ''}`} key={image.url}>
+                    <button type="button" className="admin-image-history-select" onClick={() => selectImage(image)} aria-label={`Use ${image.name || 'this image'} as profile picture`}>
+                      <img src={image.url} alt={image.name || 'Previously uploaded profile image'} />
+                    </button>
+                    <button type="button" className="admin-image-history-delete" onClick={() => requestDeleteImage(image)} aria-label={`Delete ${image.name || 'this image'} from Cloudinary`}>×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="admin-form-grid">
             <AdminField label="Image description" value={profile.imageAlt || ''} onChange={(event) => update('imageAlt', event.target.value)} required maxLength={120} hint="Describe the portrait for screen-reader users." />
             <AdminField label="Location line" value={profile.eyebrow || ''} onChange={(event) => update('eyebrow', event.target.value)} maxLength={120} />
@@ -749,14 +865,15 @@ function ResumeEditor({ value, onChange, requestConfirm, notify }) {
   })
 
   return (
-    <SectionCard eyebrow="05 / Files" title="Downloadable resume" description="A successful upload becomes public only after you publish the draft.">
-      <AdminField label="Download button label" value={resume.label || ''} onChange={(event) => onChange({ ...resume, label: event.target.value })} maxLength={60} />
+    <SectionCard eyebrow="05 / Files" title="Public resume" description="PDFs are uploaded as Cloudinary raw files so the returned URL can open directly.">
+      <AdminField label="Button label" value={resume.label || ''} onChange={(event) => onChange({ ...resume, label: event.target.value })} maxLength={60} />
       <AssetUploader
         kind="resume"
         current={{ url: resume.downloadUrl, name: resume.originalName }}
         onUploaded={uploaded}
         onRequestRemove={requestRemove}
       />
+      {resume.downloadUrl && <AdminField label="Resume URL" hint="This is the direct Cloudinary delivery URL saved after upload." value={resume.downloadUrl} readOnly />}
       {resume.updatedAt && <p className="admin-file-meta">Last replaced {new Date(resume.updatedAt).toLocaleString()}</p>}
     </SectionCard>
   )
@@ -989,6 +1106,8 @@ export function AdminApp() {
   const [authorized, setAuthorized] = useState(false)
   const [authError, setAuthError] = useState('')
   const [contentState, setContentState] = useState(null)
+  const [contentLoadError, setContentLoadError] = useState('')
+  const [contentLoadAttempt, setContentLoadAttempt] = useState(0)
 
   useEffect(() => {
     const existingRobots = document.querySelector('meta[name="robots"]')
@@ -1018,6 +1137,7 @@ export function AdminApp() {
           setUser(null)
           setAuthorized(false)
           setContentState(null)
+          setContentLoadError('')
           setAuthReady(true)
         }
         return
@@ -1057,6 +1177,8 @@ export function AdminApp() {
   useEffect(() => {
     if (!authorized || !user) return undefined
     let cancelled = false
+    setContentState(null)
+    setContentLoadError('')
 
     const loadContent = async () => {
       try {
@@ -1074,15 +1196,14 @@ export function AdminApp() {
       } catch (error) {
         console.error('Could not load portfolio content', error)
         if (!cancelled) {
-          const fallback = normalizePortfolioContent(defaultPortfolioContent)
-          setContentState({ draft: fallback, published: fallback })
+          setContentLoadError('Your saved content could not be loaded safely. Check your internet connection and Firebase rules, then try again.')
         }
       }
     }
 
     loadContent()
     return () => { cancelled = true }
-  }, [authorized, user])
+  }, [authorized, user, contentLoadAttempt])
 
   const login = async (email, password) => {
     setAuthError('')
@@ -1096,6 +1217,7 @@ export function AdminApp() {
 
   if (!authReady) return <LoadingScreen />
   if (!user || !authorized) return <AdminLogin error={authError} onSubmit={login} />
+  if (contentLoadError) return <ContentLoadError message={contentLoadError} onRetry={() => setContentLoadAttempt((value) => value + 1)} onLogout={() => signOut(auth)} />
   if (!contentState) return <LoadingScreen label="Loading your portfolio draft…" />
 
   return (

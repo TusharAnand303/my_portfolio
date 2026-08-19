@@ -44,6 +44,15 @@ function KineticDeveloper({ reduceMotion, word }) {
   )
 }
 
+function ArtLabel({ value, className }) {
+  const words = String(value || '').trim().split(/\s+/).filter(Boolean)
+  return (
+    <div className={`art-label ${className}`}>
+      <WaveWords>{words.map((word, index) => <span key={`${word}-${index}`}>{index > 0 && <br />}{word}</span>)}</WaveWords>
+    </div>
+  )
+}
+
 export default function Hero({ onPageRipple }) {
   const reduceMotion = useReducedMotion()
   const [orbitRippleId, setOrbitRippleId] = useState(0)
@@ -93,12 +102,23 @@ export default function Hero({ onPageRipple }) {
             <WaveWords><span className="hero-word"><i><KineticDeveloper reduceMotion={reduceMotion} word={hero.headingAccent} /></i><span className="heading-orbit-mark" aria-hidden="true"><b /><b /></span></span>{' '}{hero.headingSuffix}</WaveWords>
           </span>
         </h1>
-        <p className="hero-intro"><WaveWords>{hero.description}</WaveWords></p>
+        <p className="hero-intro">
+          <WaveWords>
+            {hero.description.includes('Tushar Anand')
+              ? hero.description.split('Tushar Anand').map((part, i, arr) => (
+                  <span key={i}>
+                    {part}
+                    {i < arr.length - 1 && <strong>Tushar Anand</strong>}
+                  </span>
+                ))
+              : hero.description}
+          </WaveWords>
+        </p>
         <div className="hero-actions">
           <a href={hero.primaryAction.href} className="button button-primary" data-cursor="VIEW"><span><WaveWords>{hero.primaryAction.label}</WaveWords></span><Icon name="arrow" size={17} /></a>
           {resume.downloadUrl && (
-            <a href={resume.downloadUrl} className="button button-resume" download={resume.originalName || 'Tushar-Anand-Resume.pdf'} data-cursor="CV">
-              <span><WaveWords>{resume.label}</WaveWords></span><Icon name="download" size={16} />
+            <a href={resume.downloadUrl} className="button button-resume" target="_blank" rel="noreferrer" data-cursor="CV">
+              <span><WaveWords>{resume.label}</WaveWords></span><Icon name="arrow" size={16} />
             </a>
           )}
           <a href={hero.conversationAction.href} className="text-link" data-cursor="MAIL"><span><WaveWords>{hero.conversationAction.label}</WaveWords></span><Icon name="arrow" size={16} /></a>
@@ -157,8 +177,8 @@ export default function Hero({ onPageRipple }) {
           <span className="center-disc-symbol">&infin;</span>
           <small className="center-disc-cue" aria-hidden="true">PRESS</small>
         </button>
-        <div className="art-label label-one"><WaveWords>WEB<br />ARCHITECTURE</WaveWords></div>
-        <div className="art-label label-two"><WaveWords>SAAS<br />FOR GOVERNMENT</WaveWords></div>
+        <ArtLabel className="label-one" value={hero.artLabels?.[0] || 'WEB ARCHITECTURE'} />
+        <ArtLabel className="label-two" value={hero.artLabels?.[1] || 'SAAS FOR GOVERNMENT'} />
       </div>
       <div className="hero-footer">
         <p><WaveWords>{hero.location.map((line, index) => <span key={line}>{index > 0 && <br />}{line}</span>)}</WaveWords></p>

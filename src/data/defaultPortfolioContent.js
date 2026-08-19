@@ -121,7 +121,7 @@ export const defaultPortfolioContent = {
     description: "I'm Tushar Anand, a full stack web developer with 5+ years of experience building reliable websites, APIs, SaaS applications, and high-impact digital platforms.",
     highlights: [
       { id: 'experience', value: '5+ years', label: 'Building real products' },
-      { id: 'govtech', value: 'GovTech', label: 'NIC · High Court' },
+      { id: 'ontech', value: 'On Tech', label: 'NIC · High Court' },
       { id: 'delivery', value: 'End to end', label: 'UI · APIs · data' },
     ],
     primaryAction: { label: 'Explore my work', href: '#work' },
@@ -134,6 +134,8 @@ export const defaultPortfolioContent = {
   profile: {
     imageUrl: '',
     imagePath: '',
+    imageName: '',
+    imageHistory: [],
     imageAlt: 'Tushar Anand',
     eyebrow: 'Based in Ranchi, Jharkhand',
     summary: 'I build Full Stack Web systems that are secure, maintainable, and prepared for real-world usage - from robust database structure to clear application workflows.',
@@ -141,8 +143,8 @@ export const defaultPortfolioContent = {
     snapshotCode: 'HR / 01',
     snapshot: [
       { id: 'experience', value: '5+ years', label: 'Full Stack Web Development' },
-      { id: 'role', value: 'NIC', label: 'Current role' },
-      { id: 'impact', value: 'High Court', label: 'Public digital services' },
+      { id: 'role', value: 'Senior Web Developer', label: 'Current role' },
+      { id: 'impact', value: 'High Court Project', label: 'Govt. digital services' },
     ],
     recruiterAction: {
       label: 'Talk about a role',
@@ -158,6 +160,7 @@ export const defaultPortfolioContent = {
     },
   },
   skills: supportedSkills.map((skill) => ({ ...skill })),
+  aboutSkills: ['REST APIs', 'Linux', 'System Design', 'API', 'CSS - Tailwind CSS & many more.'],
   work: {
     sectionNumber: '04',
     sectionLabel: 'Projects and focus',
@@ -248,6 +251,19 @@ const normalizeExternalUrl = (value) => {
   } catch {
     return ''
   }
+}
+
+const normalizeResumeUrl = (value) => {
+  if (typeof value === 'string' && value.trim().startsWith('/')) return value.trim()
+  return normalizeExternalUrl(value)
+}
+
+const normalizeActionHref = (value, fallback = '') => {
+  if (typeof value !== 'string' || !value.trim()) return fallback
+  const candidate = value.trim()
+  if (candidate.startsWith('#')) return candidate
+  if (candidate.toLowerCase().startsWith('mailto:')) return candidate
+  return normalizeExternalUrl(candidate) || fallback
 }
 
 const normalizeLabelValueList = (incoming, fallback = []) => {
@@ -362,11 +378,37 @@ export function normalizePortfolioContent(incoming = {}) {
   normalized.hero.highlights = normalizeLabelValueList(source.hero?.highlights, defaultPortfolioContent.hero.highlights)
   normalized.hero.artLabels = normalizeStringList(source.hero?.artLabels, defaultPortfolioContent.hero.artLabels)
   normalized.hero.location = normalizeStringList(source.hero?.location, defaultPortfolioContent.hero.location)
+  normalized.hero.primaryAction.href = normalizeActionHref(source.hero?.primaryAction?.href, defaultPortfolioContent.hero.primaryAction.href)
+  normalized.hero.conversationAction.href = normalizeActionHref(source.hero?.conversationAction?.href, defaultPortfolioContent.hero.conversationAction.href)
   normalized.profile.snapshot = normalizeLabelValueList(source.profile?.snapshot, defaultPortfolioContent.profile.snapshot)
-  if (!normalized.profile.imageUrl.trim()) normalized.profile.imageUrl = defaultPortfolioContent.profile.imageUrl
+  normalized.profile.recruiterAction.href = normalizeActionHref(source.profile?.recruiterAction?.href, defaultPortfolioContent.profile.recruiterAction.href)
+  normalized.profile.imageUrl = normalizeExternalUrl(source.profile?.imageUrl ?? defaultPortfolioContent.profile.imageUrl)
+  normalized.profile.imageHistory = Array.isArray(source.profile?.imageHistory)
+    ? source.profile.imageHistory
+      .filter(isPlainObject)
+      .map((image) => ({
+        url: normalizeExternalUrl(image.url),
+        path: typeof image.path === 'string' ? image.path : '',
+        deleteToken: typeof image.deleteToken === 'string' ? image.deleteToken : '',
+        name: typeof image.name === 'string' ? image.name : 'Profile image',
+        uploadedAt: typeof image.uploadedAt === 'string' ? image.uploadedAt : '',
+      }))
+      .filter((image) => image.url)
+    : []
+  if (normalized.profile.imageUrl && !normalized.profile.imageHistory.some((image) => image.url === normalized.profile.imageUrl)) {
+    normalized.profile.imageHistory.unshift({
+      url: normalized.profile.imageUrl,
+      path: normalized.profile.imagePath || '',
+      deleteToken: '',
+      name: normalized.profile.imageName || 'Current profile image',
+      uploadedAt: '',
+    })
+  }
   normalized.skills = normalizeSkills(source.skills)
+  normalized.aboutSkills = normalizeStringList(source.aboutSkills, defaultPortfolioContent.aboutSkills)
   normalized.projects = normalizeProjects(source.projects)
   normalized.capabilities = normalizeCapabilities(source.capabilities)
+  normalized.resume.downloadUrl = normalizeResumeUrl(source.resume?.downloadUrl ?? defaultPortfolioContent.resume.downloadUrl)
 
   return normalized
 }
