@@ -6,7 +6,7 @@ export default function Contact() {
     <footer className="contact section-shell" id="contact">
       <div className="contact-line" />
       <p className="eyebrow"><span className="pulse" /><span><WaveWords>Open to meaningful opportunities</WaveWords></span></p>
-      <h2><WaveWords>Let's build<br /><i>something dependable.</i></WaveWords></h2>
+      <h2><WaveWords>Let's build<br /><i>something that will change the world.</i></WaveWords></h2>
       <div className="contact-methods">
         <a className="contact-email" href="mailto:tusharanand303@gmail.com" data-cursor="MAIL"><WaveWords>tusharanand303@gmail.com </WaveWords><Icon name="arrow" size={27} /></a>
         <a className="contact-phone" href="tel:+919304984077"><WaveWords>+91 93049 84077</WaveWords></a>
