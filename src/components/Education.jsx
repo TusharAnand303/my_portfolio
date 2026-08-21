@@ -1,42 +1,55 @@
 import WaveWords from './WaveWords'
-
-const qualifications = [
-  {
-    period: '2020 - 2022',
-    degree: 'Master of Computer Applications',
-    short: 'MCA',
-    college: 'Marwari College, Ranchi',
-    marks: '85%'
-  },
-  {
-    period: '2017 - 2020',
-    degree: 'Bachelor of Computer Applications',
-    short: 'BCA',
-    college: 'Marwari College, Ranchi',
-    marks: '80%'
-  },
-]
+import { usePortfolioContent } from '../context/PortfolioContentContext'
 
 export default function Education() {
+  const { content } = usePortfolioContent()
+  const education = content.education || {}
+  const qualifications = (education.qualifications || [])
+    .filter((qualification) => qualification.enabled !== false && (qualification.degree || '').trim())
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+
+  if (!qualifications.length) return null
+
   return (
     <section className="education section-shell" id="education">
-      <div className="section-heading"><span><WaveWords>02</WaveWords></span><p><WaveWords>Education</WaveWords></p></div>
+      <div className="section-heading">
+        <span><WaveWords>{education.sectionNumber}</WaveWords></span>
+        <p><WaveWords>{education.sectionLabel}</WaveWords></p>
+      </div>
       <div className="education-heading">
-        <h2><WaveWords>Academic foundations for<br /><i>practical technology.</i></WaveWords></h2>
-        <p><WaveWords>Formal computer applications education, strengthened by hands-on software engineering experience.</WaveWords></p>
+        <h2><WaveWords>{education.headingLineOne}<br /><i>{education.headingAccent}</i></WaveWords></h2>
+        <p><WaveWords>{education.description}</WaveWords></p>
       </div>
-      <div className="qualification-list">
+      <ol className="edu-timeline">
         {qualifications.map((qualification, index) => (
-          <article className="qualification" key={qualification.short}>
-            <span className="qualification-number"><WaveWords>{`0${index + 1}`}</WaveWords></span>
-            <p className="qualification-period"><WaveWords>{qualification.period}</WaveWords></p>
-            <h3><WaveWords>{qualification.degree}</WaveWords></h3>
-            <p className="qualification-college"><WaveWords>{qualification.college}</WaveWords></p>
-            <span className="qualification-short"><WaveWords>{qualification.short}</WaveWords></span>
-            <p className="qualification-marks"><WaveWords>{qualification.marks}</WaveWords></p>
-          </article>
+          <li className="edu-entry" key={qualification.id}>
+            <div className="edu-entry-rail" aria-hidden="true">
+              <span className="edu-entry-dot" />
+            </div>
+            <div className="edu-entry-body">
+              <p className="edu-entry-period">
+                <span className="edu-entry-index"><WaveWords>{String(index + 1).padStart(2, '0')}</WaveWords></span>
+                <WaveWords>{qualification.period}</WaveWords>
+              </p>
+              <h3>
+                <WaveWords>{qualification.degree}</WaveWords>
+                {qualification.short && <span className="edu-entry-badge"><WaveWords>{qualification.short}</WaveWords></span>}
+              </h3>
+              <p className="edu-entry-college">
+                <WaveWords>{qualification.college}</WaveWords>
+                {qualification.location && <i><WaveWords>{qualification.location}</WaveWords></i>}
+              </p>
+              {qualification.focus && <p className="edu-entry-focus"><WaveWords>{qualification.focus}</WaveWords></p>}
+            </div>
+            {qualification.marks && (
+              <p className="edu-entry-score">
+                <span><WaveWords>{qualification.scoreLabel || 'Result'}</WaveWords></span>
+                <strong><WaveWords>{qualification.marks}</WaveWords></strong>
+              </p>
+            )}
+          </li>
         ))}
-      </div>
+      </ol>
     </section>
   )
 }

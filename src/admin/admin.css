@@ -897,6 +897,20 @@
 .admin-empty { padding: 28px 18px; text-align: center; }
 .admin-empty p { margin: 7px 0 0; color: var(--admin-muted); font-size: 12px; }
 
+.admin-inline-note {
+  padding: 13px 14px;
+  border: 1px solid var(--admin-line-strong);
+  border-left-width: 3px;
+  background: var(--admin-paper-deep);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.admin-inline-note.is-live {
+  border-left-color: var(--admin-lime);
+  background: rgba(217, 251, 99, 0.16);
+}
+
 .admin-undo {
   position: fixed;
   z-index: 110;

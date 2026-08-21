@@ -5,6 +5,7 @@ import Hero from './components/Hero'
 import About from './components/About'
 import Profile from './components/Profile'
 import Education from './components/Education'
+import Certificates from './components/Certificates'
 import Experience from './components/Experience'
 import Work from './components/Work'
 import Playground from './components/Playground'
@@ -12,7 +13,7 @@ import Contact from './components/Contact'
 import Icon from './components/Icon'
 import CursorDot from './components/CursorDot'
 import PageRipple from './components/PageRipple'
-import { PortfolioContentProvider } from './context/PortfolioContentContext'
+import { PortfolioContentProvider, usePortfolioContent } from './context/PortfolioContentContext'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
@@ -25,14 +26,23 @@ const isAdminRoute = () => {
 function PortfolioSite() {
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [pageRipple, setPageRipple] = useState(null)
+  const { content } = usePortfolioContent()
   const { scrollYProgress } = useScroll()
   const smoothScrollProgress = useSpring(scrollYProgress, { stiffness: 150, damping: 28, mass: 0.25 })
   const launchWave = (origin) => {
     setPageRipple((current) => ({ ...origin, id: (current?.id || 0) + 1 }))
   }
 
+  // Content arrives from Firestore after mount, so sections such as certificates
+  // may not exist on the first pass. Re-scan whenever the countable content changes.
+  const revealSignature = [
+    content.education?.qualifications?.length || 0,
+    content.certificates?.items?.length || 0,
+    content.projects?.length || 0,
+  ].join(':')
+
   useEffect(() => {
-    const revealItems = document.querySelectorAll('.about-grid, .profile-photo, .profile-details, .education-heading, .qualification, .experience-top, .role, .work-heading, .playground-heading, .playground-shell, .contact > *:not(.contact-line)')
+    const revealItems = document.querySelectorAll('.about-grid, .profile-photo, .profile-details, .education-heading, .edu-entry, .certificates-heading, .certificate-card, .experience-top, .role, .work-heading, .playground-heading, .playground-shell, .contact > *:not(.contact-line)')
     const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -43,6 +53,7 @@ function PortfolioSite() {
     }, { threshold: 0.14, rootMargin: '0px 0px -40px' })
 
     revealItems.forEach((item, index) => {
+      if (item.classList.contains('is-visible')) return
       item.classList.add('scroll-reveal')
       item.style.setProperty('--reveal-delay', `${(index % 4) * 70}ms`)
       revealObserver.observe(item)
@@ -57,7 +68,7 @@ function PortfolioSite() {
       revealObserver.disconnect()
       window.removeEventListener('scroll', updateScrollTop)
     }
-  }, [])
+  }, [revealSignature])
 
   return (
     <MotionConfig reducedMotion="user" transition={{ type: 'spring', stiffness: 240, damping: 28 }}>
@@ -70,6 +81,7 @@ function PortfolioSite() {
         <About />
         <Profile />
         <Education />
+        <Certificates />
         <Experience />
         <Work />
         <Playground />

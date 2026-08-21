@@ -9,7 +9,7 @@ const roles = [
 export default function Experience() {
   return (
     <section className="experience section-shell" id="experience">
-      <div className="section-heading"><span><WaveWords>03</WaveWords></span><p><WaveWords>Experience</WaveWords></p></div>
+      <div className="section-heading"><span><WaveWords>04</WaveWords></span><p><WaveWords>Experience</WaveWords></p></div>
       <div className="experience-top"><h2><WaveWords>Five years+ of<br /><i>meaningful momentum.</i></WaveWords></h2><p><WaveWords>I care about quality at every layer - from a precise data model to a dependable, intuitive public service.</WaveWords></p></div>
       <div className="experience-list">
         {roles.map((item, index) => <article className="role" key={item.period}><span className="role-number"><WaveWords>{`0${index + 1}`}</WaveWords></span><p className="period"><WaveWords>{item.period}</WaveWords></p><div><h3><WaveWords>{item.role}</WaveWords></h3><p className="company"><WaveWords>{item.company}</WaveWords></p></div><p className="role-note"><WaveWords>{item.note}</WaveWords></p></article>)}

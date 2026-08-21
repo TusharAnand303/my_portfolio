@@ -110,8 +110,37 @@ const defaultProjects = [
   },
 ]
 
+const defaultQualifications = [
+  {
+    id: 'mca',
+    enabled: true,
+    order: 0,
+    period: '2020 - 2022',
+    degree: 'Master of Computer Applications',
+    short: 'MCA',
+    college: 'Marwari College, Ranchi',
+    location: '',
+    focus: '',
+    scoreLabel: 'Result',
+    marks: '85%',
+  },
+  {
+    id: 'bca',
+    enabled: true,
+    order: 1,
+    period: '2017 - 2020',
+    degree: 'Bachelor of Computer Applications',
+    short: 'BCA',
+    college: 'Marwari College, Ranchi',
+    location: '',
+    focus: '',
+    scoreLabel: 'Result',
+    marks: '80%',
+  },
+]
+
 export const defaultPortfolioContent = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   hero: {
     eyebrowPrefix: 'Currently building at',
     organisation: 'National Informatics Centre, Ranchi',
@@ -161,8 +190,24 @@ export const defaultPortfolioContent = {
   },
   skills: supportedSkills.map((skill) => ({ ...skill })),
   aboutSkills: ['REST APIs', 'Linux', 'System Design', 'API', 'CSS - Tailwind CSS & many more.'],
+  education: {
+    sectionNumber: '02',
+    sectionLabel: 'Education',
+    headingLineOne: 'Academic foundations for',
+    headingAccent: 'practical technology.',
+    description: 'Formal computer applications education, strengthened by hands-on software engineering experience.',
+    qualifications: defaultQualifications,
+  },
+  certificates: {
+    sectionNumber: '03',
+    sectionLabel: 'Certifications',
+    headingLineOne: 'Verified skills,',
+    headingAccent: 'independently certified.',
+    description: 'Courses and credentials that back up the day-to-day engineering work.',
+    items: [],
+  },
   work: {
-    sectionNumber: '04',
+    sectionNumber: '05',
     sectionLabel: 'Projects and focus',
     headingLineOne: 'Building systems that',
     headingAccent: 'serve with confidence.',
@@ -371,6 +416,79 @@ const normalizeCapabilities = (incoming) => {
     .sort((left, right) => left.order - right.order)
 }
 
+const qualificationTemplate = {
+  id: '',
+  enabled: true,
+  order: 0,
+  period: '',
+  degree: '',
+  short: '',
+  college: '',
+  location: '',
+  focus: '',
+  scoreLabel: 'Result',
+  marks: '',
+}
+
+const normalizeQualifications = (incoming) => {
+  const fallback = defaultPortfolioContent.education.qualifications
+  if (!Array.isArray(incoming)) return cloneValue(fallback)
+
+  const defaultsById = new Map(fallback.map((item) => [item.id, item]))
+  const seen = new Set()
+
+  return incoming
+    .filter(isPlainObject)
+    .map((qualification, index) => {
+      const requestedId = typeof qualification.id === 'string' && qualification.id.trim()
+        ? qualification.id.trim()
+        : `qualification-${index + 1}`
+      const id = seen.has(requestedId) ? `${requestedId}-${index + 1}` : requestedId
+      seen.add(id)
+
+      const base = defaultsById.get(id) || { ...qualificationTemplate, id, order: index }
+      const normalized = mergeKnownFields(base, qualification)
+      normalized.id = id
+      normalized.order = Number.isFinite(normalized.order) ? normalized.order : index
+      return normalized
+    })
+    .sort((left, right) => left.order - right.order)
+}
+
+const certificateTemplate = {
+  id: '',
+  enabled: true,
+  order: 0,
+  title: '',
+  issuer: '',
+  issued: '',
+  url: '',
+  cta: 'View credential',
+}
+
+const normalizeCertificates = (incoming) => {
+  if (!Array.isArray(incoming)) return []
+
+  const seen = new Set()
+
+  return incoming
+    .filter(isPlainObject)
+    .map((certificate, index) => {
+      const requestedId = typeof certificate.id === 'string' && certificate.id.trim()
+        ? certificate.id.trim()
+        : `certificate-${index + 1}`
+      const id = seen.has(requestedId) ? `${requestedId}-${index + 1}` : requestedId
+      seen.add(id)
+
+      const normalized = mergeKnownFields({ ...certificateTemplate, id, order: index }, certificate)
+      normalized.id = id
+      normalized.order = Number.isFinite(normalized.order) ? normalized.order : index
+      normalized.url = normalizeExternalUrl(certificate.url)
+      return normalized
+    })
+    .sort((left, right) => left.order - right.order)
+}
+
 export function normalizePortfolioContent(incoming = {}) {
   const source = isPlainObject(incoming) ? incoming : {}
   const normalized = mergeKnownFields(defaultPortfolioContent, source)
@@ -406,9 +524,21 @@ export function normalizePortfolioContent(incoming = {}) {
   }
   normalized.skills = normalizeSkills(source.skills)
   normalized.aboutSkills = normalizeStringList(source.aboutSkills, defaultPortfolioContent.aboutSkills)
+  normalized.education.qualifications = normalizeQualifications(source.education?.qualifications)
+  normalized.certificates.items = normalizeCertificates(source.certificates?.items)
   normalized.projects = normalizeProjects(source.projects)
   normalized.capabilities = normalizeCapabilities(source.capabilities)
   normalized.resume.downloadUrl = normalizeResumeUrl(source.resume?.downloadUrl ?? defaultPortfolioContent.resume.downloadUrl)
+
+  // Schema 2 inserted the Certificates section at 03, pushing Experience to 04 and
+  // Projects to 05. Documents saved before that still carry the old Projects number,
+  // which would render a duplicate "04" on the page. Only documents that never moved
+  // past schema 1 are touched, so the number stays editable in the admin afterwards.
+  const storedVersion = Number.isFinite(source.schemaVersion) ? source.schemaVersion : 0
+  if (storedVersion < 2 && normalized.work.sectionNumber === '04') {
+    normalized.work.sectionNumber = '05'
+  }
+  normalized.schemaVersion = defaultPortfolioContent.schemaVersion
 
   return normalized
 }

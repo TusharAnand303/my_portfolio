@@ -9,7 +9,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
 import { auth, db } from '../../firebase.js'
 import {
-  defaultPortfolioContent,
+  defaultPortfolioContent, 
   normalizePortfolioContent,
   supportedSkills,
 } from '../data/defaultPortfolioContent.js'
@@ -19,9 +19,16 @@ const tabs = [
   { id: 'hero', label: 'Hero' },
   { id: 'profile', label: 'Profile' },
   { id: 'skills', label: 'Skills' },
+  { id: 'education', label: 'Education' },
+  { id: 'certificates', label: 'Certificates' },
   { id: 'projects', label: 'Projects' },
   { id: 'files', label: 'Files' },
 ]
+
+const tabSectionKeys = {
+  projects: ['projects', 'work'],
+  files: ['resume'],
+}
 
 const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -92,6 +99,33 @@ const createProject = () => ({
     title: '',
     steps: ['', '', ''],
   },
+})
+
+const reorder = (items) => items.map((item, index) => ({ ...item, order: index }))
+
+const createQualification = () => ({
+  id: createId('qualification'),
+  enabled: true,
+  order: 0,
+  period: '',
+  degree: '',
+  short: '',
+  college: '',
+  location: '',
+  focus: '',
+  scoreLabel: 'Result',
+  marks: '',
+})
+
+const createCertificate = () => ({
+  id: createId('certificate'),
+  enabled: true,
+  order: 0,
+  title: '',
+  issuer: '',
+  issued: '',
+  url: '',
+  cta: 'View credential',
 })
 
 const describeAuthError = (error) => {
@@ -754,6 +788,256 @@ function SkillsEditor({ value, onChange }) {
   )
 }
 
+function EducationEditor({ value, onChange, requestConfirm, notify }) {
+  const education = value || {}
+  const qualifications = Array.isArray(education.qualifications) ? education.qualifications : []
+  const [undo, setUndo] = useState(null)
+  const undoTimer = useRef(null)
+
+  useEffect(() => () => window.clearTimeout(undoTimer.current), [])
+
+  const update = (key, nextValue) => onChange({ ...education, [key]: nextValue })
+  const commit = (next) => update('qualifications', reorder(next))
+  const updateEntry = (index, patch) => commit(qualifications.map((item, itemIndex) => (
+    itemIndex === index ? { ...item, ...patch } : item
+  )))
+  const move = (index, amount) => {
+    const target = index + amount
+    if (target < 0 || target >= qualifications.length) return
+    const next = [...qualifications]
+    const [item] = next.splice(index, 1)
+    next.splice(target, 0, item)
+    commit(next)
+  }
+  const add = () => {
+    commit([...qualifications, createQualification()])
+    notify('Qualification added to the draft. Fill in its details below.')
+  }
+  const requestDelete = (entry, index) => requestConfirm({
+    title: `Remove “${entry.degree || 'this qualification'}”?`,
+    description: 'This removes it from your draft. The live portfolio stays unchanged until you publish.',
+    confirmLabel: 'Remove qualification',
+    danger: true,
+    onConfirm: () => {
+      commit(qualifications.filter((_, itemIndex) => itemIndex !== index))
+      window.clearTimeout(undoTimer.current)
+      setUndo({ entry, index })
+      undoTimer.current = window.setTimeout(() => setUndo(null), 10000)
+    },
+  })
+  const restore = () => {
+    if (!undo) return
+    const next = [...qualifications]
+    next.splice(Math.min(undo.index, next.length), 0, undo.entry)
+    commit(next)
+    window.clearTimeout(undoTimer.current)
+    setUndo(null)
+    notify('Qualification restored.')
+  }
+
+  const visible = qualifications.filter((item) => item.enabled !== false).length
+
+  return (
+    <>
+      <SectionCard
+        eyebrow="04 / Education"
+        title="Section introduction"
+        description="These lines sit above the academic timeline on your portfolio."
+      >
+        <div className="admin-form-grid">
+          <AdminField label="Section number" value={education.sectionNumber || ''} onChange={(event) => update('sectionNumber', event.target.value)} maxLength={4} hint="The small monospaced number beside the label." />
+          <AdminField label="Section label" value={education.sectionLabel || ''} onChange={(event) => update('sectionLabel', event.target.value)} maxLength={40} />
+          <AdminField label="Heading — line one" value={education.headingLineOne || ''} onChange={(event) => update('headingLineOne', event.target.value)} maxLength={80} />
+          <AdminField label="Heading — italic line" value={education.headingAccent || ''} onChange={(event) => update('headingAccent', event.target.value)} maxLength={80} hint="Rendered in italics on the second line." />
+          <AdminField className="admin-field-wide" label="Intro paragraph" as="textarea" rows="4" value={education.description || ''} onChange={(event) => update('description', event.target.value)} maxLength={320} />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        eyebrow="Timeline"
+        title="Academic details"
+        description={`${visible} of ${qualifications.length} ${qualifications.length === 1 ? 'entry is' : 'entries are'} visible. The whole section hides itself if none are.`}
+      >
+        <div className="admin-section-toolbar">
+          <p>The timeline renders in this order — most recent first reads best.</p>
+          <button type="button" className="admin-primary admin-add-button" onClick={add}>+ Add qualification</button>
+        </div>
+        <div className="admin-project-list">
+          {qualifications.map((entry, index) => (
+            <article className={entry.enabled === false ? 'admin-project-card is-disabled' : 'admin-project-card'} key={entry.id || index}>
+              <div className="admin-project-card-heading">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <p>{entry.period || 'No period set'}</p>
+                  <h3>{entry.degree || 'Untitled qualification'}</h3>
+                </div>
+              </div>
+              <div className="admin-form-grid">
+                <AdminField label="Period" value={entry.period || ''} onChange={(event) => updateEntry(index, { period: event.target.value })} maxLength={40} placeholder="2020 - 2022" />
+                <AdminField label="Short code" value={entry.short || ''} onChange={(event) => updateEntry(index, { short: event.target.value })} maxLength={12} placeholder="MCA" hint="Badge shown beside the degree." />
+                <AdminField className="admin-field-wide" label="Degree" value={entry.degree || ''} onChange={(event) => updateEntry(index, { degree: event.target.value })} maxLength={120} placeholder="Master of Computer Applications" />
+                <AdminField label="Institution" value={entry.college || ''} onChange={(event) => updateEntry(index, { college: event.target.value })} maxLength={120} placeholder="Marwari College, Ranchi" />
+                <AdminField label="Location" value={entry.location || ''} onChange={(event) => updateEntry(index, { location: event.target.value })} maxLength={80} hint="Optional. Hidden when empty." />
+                <AdminField label="Score label" value={entry.scoreLabel || ''} onChange={(event) => updateEntry(index, { scoreLabel: event.target.value })} maxLength={24} placeholder="Result" hint="e.g. Result, CGPA, Division." />
+                <AdminField label="Score" value={entry.marks || ''} onChange={(event) => updateEntry(index, { marks: event.target.value })} maxLength={24} placeholder="85%" hint="Leave empty to hide the score block." />
+                <AdminField className="admin-field-wide" label="Focus line" as="textarea" rows="3" value={entry.focus || ''} onChange={(event) => updateEntry(index, { focus: event.target.value })} maxLength={240} hint="Optional. Coursework, specialisation or a highlight." />
+              </div>
+              <ToggleField label="Visible" description="Hidden entries stay saved but drop off the timeline." checked={entry.enabled !== false} onChange={(enabled) => updateEntry(index, { enabled })} />
+              <div className="admin-project-actions">
+                <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`Move ${entry.degree || 'qualification'} up`}>↑</button>
+                <button type="button" onClick={() => move(index, 1)} disabled={index === qualifications.length - 1} aria-label={`Move ${entry.degree || 'qualification'} down`}>↓</button>
+                <button type="button" className="is-danger" onClick={() => requestDelete(entry, index)}>Delete</button>
+              </div>
+            </article>
+          ))}
+          {!qualifications.length && (
+            <div className="admin-empty">
+              <strong>No qualifications yet.</strong>
+              <p>Add one and the Education section reappears on the portfolio.</p>
+            </div>
+          )}
+        </div>
+        {undo && (
+          <div className="admin-undo" role="status">
+            <span>“{undo.entry.degree || 'Qualification'}” removed from the draft.</span>
+            <button type="button" onClick={restore}>Undo</button>
+          </div>
+        )}
+      </SectionCard>
+    </>
+  )
+}
+
+function CertificatesEditor({ value, onChange, requestConfirm, notify }) {
+  const certificates = value || {}
+  const items = Array.isArray(certificates.items) ? certificates.items : []
+  const [undo, setUndo] = useState(null)
+  const undoTimer = useRef(null)
+
+  useEffect(() => () => window.clearTimeout(undoTimer.current), [])
+
+  const update = (key, nextValue) => onChange({ ...certificates, [key]: nextValue })
+  const commit = (next) => update('items', reorder(next))
+  const updateEntry = (index, patch) => commit(items.map((item, itemIndex) => (
+    itemIndex === index ? { ...item, ...patch } : item
+  )))
+  const move = (index, amount) => {
+    const target = index + amount
+    if (target < 0 || target >= items.length) return
+    const next = [...items]
+    const [item] = next.splice(index, 1)
+    next.splice(target, 0, item)
+    commit(next)
+  }
+  const add = () => {
+    commit([...items, createCertificate()])
+    notify('Certificate added to the draft. Give it a title to make it visible.')
+  }
+  const duplicate = (certificate, index) => {
+    const copy = { ...clone(certificate), id: createId('certificate'), title: `${certificate.title} copy` }
+    const next = [...items]
+    next.splice(index + 1, 0, copy)
+    commit(next)
+    notify('Certificate duplicated. Edit the copy when you are ready.')
+  }
+  const requestDelete = (certificate, index) => requestConfirm({
+    title: `Remove “${certificate.title || 'this certificate'}”?`,
+    description: 'This removes it from your draft. The live portfolio stays unchanged until you publish.',
+    confirmLabel: 'Remove certificate',
+    danger: true,
+    onConfirm: () => {
+      commit(items.filter((_, itemIndex) => itemIndex !== index))
+      window.clearTimeout(undoTimer.current)
+      setUndo({ certificate, index })
+      undoTimer.current = window.setTimeout(() => setUndo(null), 10000)
+    },
+  })
+  const restore = () => {
+    if (!undo) return
+    const next = [...items]
+    next.splice(Math.min(undo.index, next.length), 0, undo.certificate)
+    commit(next)
+    window.clearTimeout(undoTimer.current)
+    setUndo(null)
+    notify('Certificate restored.')
+  }
+
+  const visible = items.filter((item) => item.enabled !== false && (item.title || '').trim()).length
+
+  return (
+    <>
+      <SectionCard
+        eyebrow="05 / Certificates"
+        title="Section introduction"
+        description="Only used when at least one certificate is visible — otherwise the whole section, and its nav link, stay off the page."
+      >
+        <div className={visible ? 'admin-inline-note is-live' : 'admin-inline-note'} role="status">
+          {visible
+            ? `${visible} certificate${visible === 1 ? '' : 's'} will show on the portfolio.`
+            : 'Nothing is visible yet, so the certificates section is currently hidden from your portfolio.'}
+        </div>
+        <div className="admin-form-grid admin-form-grid-spaced">
+          <AdminField label="Section number" value={certificates.sectionNumber || ''} onChange={(event) => update('sectionNumber', event.target.value)} maxLength={4} />
+          <AdminField label="Section label" value={certificates.sectionLabel || ''} onChange={(event) => update('sectionLabel', event.target.value)} maxLength={40} />
+          <AdminField label="Heading — line one" value={certificates.headingLineOne || ''} onChange={(event) => update('headingLineOne', event.target.value)} maxLength={80} />
+          <AdminField label="Heading — italic line" value={certificates.headingAccent || ''} onChange={(event) => update('headingAccent', event.target.value)} maxLength={80} hint="Rendered in italics on the second line." />
+          <AdminField className="admin-field-wide" label="Intro paragraph" as="textarea" rows="4" value={certificates.description || ''} onChange={(event) => update('description', event.target.value)} maxLength={320} />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        eyebrow="Credentials"
+        title="Your certificates"
+        description="Each one becomes a card. A certificate needs a title before it will appear."
+      >
+        <div className="admin-section-toolbar">
+          <p>{items.length} saved certificate{items.length === 1 ? '' : 's'}</p>
+          <button type="button" className="admin-primary admin-add-button" onClick={add}>+ Add certificate</button>
+        </div>
+        <div className="admin-project-list">
+          {items.map((certificate, index) => (
+            <article className={certificate.enabled === false ? 'admin-project-card is-disabled' : 'admin-project-card'} key={certificate.id || index}>
+              <div className="admin-project-card-heading">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <p>{certificate.issuer || 'No issuer set'}{certificate.issued ? ` · ${certificate.issued}` : ''}</p>
+                  <h3>{certificate.title || 'Untitled certificate'}</h3>
+                </div>
+              </div>
+              <div className="admin-form-grid">
+                <AdminField className="admin-field-wide" label="Certificate title" value={certificate.title || ''} onChange={(event) => updateEntry(index, { title: event.target.value })} maxLength={140} placeholder="Full Stack Web Development" />
+                <AdminField label="Issued by" value={certificate.issuer || ''} onChange={(event) => updateEntry(index, { issuer: event.target.value })} maxLength={120} placeholder="Coursera" />
+                <AdminField label="Issued" value={certificate.issued || ''} onChange={(event) => updateEntry(index, { issued: event.target.value })} maxLength={40} placeholder="2024" hint="Free text — a year or a full date." />
+                <AdminField label="Credential URL" type="url" inputMode="url" value={certificate.url || ''} onChange={(event) => updateEntry(index, { url: event.target.value })} placeholder="https://" hint="Optional. Must start with http:// or https:// to be saved." />
+                <AdminField label="Link label" value={certificate.cta || ''} onChange={(event) => updateEntry(index, { cta: event.target.value })} maxLength={60} placeholder="View credential" />
+              </div>
+              <ToggleField label="Visible" description="Hidden certificates stay saved but drop off the portfolio." checked={certificate.enabled !== false} onChange={(enabled) => updateEntry(index, { enabled })} />
+              <div className="admin-project-actions">
+                <button type="button" onClick={() => duplicate(certificate, index)}>Duplicate</button>
+                <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`Move ${certificate.title || 'certificate'} up`}>↑</button>
+                <button type="button" onClick={() => move(index, 1)} disabled={index === items.length - 1} aria-label={`Move ${certificate.title || 'certificate'} down`}>↓</button>
+                <button type="button" className="is-danger" onClick={() => requestDelete(certificate, index)}>Delete</button>
+              </div>
+            </article>
+          ))}
+          {!items.length && (
+            <div className="admin-empty">
+              <strong>No certificates yet.</strong>
+              <p>Add one to switch the certificates section on. Leave it empty and visitors never see the section.</p>
+            </div>
+          )}
+        </div>
+        {undo && (
+          <div className="admin-undo" role="status">
+            <span>“{undo.certificate.title || 'Certificate'}” removed from the draft.</span>
+            <button type="button" onClick={restore}>Undo</button>
+          </div>
+        )}
+      </SectionCard>
+    </>
+  )
+}
+
 function ProjectForm({ project, onSave, onCancel }) {
   const [draft, setDraft] = useState(() => clone(project))
   const [error, setError] = useState('')
@@ -850,7 +1134,7 @@ function ProjectForm({ project, onSave, onCancel }) {
   )
 }
 
-function ProjectsEditor({ value, onChange, requestConfirm, notify }) {
+function ProjectsEditor({ value, onChange, work, onWorkChange, requestConfirm, notify }) {
   const projects = Array.isArray(value) ? value : []
   const [editing, setEditing] = useState(null)
   const [undo, setUndo] = useState(null)
@@ -904,43 +1188,61 @@ function ProjectsEditor({ value, onChange, requestConfirm, notify }) {
 
   if (editing) return <ProjectForm project={editing} onSave={saveProject} onCancel={() => setEditing(null)} />
 
+  const workSection = work || {}
+  const updateWork = (key, nextValue) => onWorkChange({ ...workSection, [key]: nextValue })
+
   return (
-    <SectionCard
-      eyebrow="04 / Projects"
-      title="Selected work"
-      description="Change the order with the move buttons. Reordering works reliably on touchscreens and with a keyboard."
-    >
-      <div className="admin-section-toolbar">
-        <p>{projects.length} saved project{projects.length === 1 ? '' : 's'}</p>
-        <button type="button" className="admin-primary admin-add-button" onClick={() => setEditing(createProject())}>+ Add project</button>
-      </div>
-      <div className="admin-project-list">
-        {projects.map((project, index) => (
-          <article className={project.enabled === false ? 'admin-project-card is-disabled' : 'admin-project-card'} key={project.id || project.number || index}>
-            <div className={`admin-project-accent is-${project.accent || 'lime'}`} aria-hidden="true" />
-            <div className="admin-project-card-heading">
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              <div><p>{project.category || 'Uncategorised project'}</p><h3>{project.title || 'Untitled project'}</h3></div>
-            </div>
-            <ToggleField label="Visible" checked={project.enabled !== false} onChange={(enabled) => commit(projects.map((item, itemIndex) => itemIndex === index ? { ...item, enabled } : item))} />
-            <div className="admin-project-actions">
-              <button type="button" onClick={() => setEditing(project)}>Edit</button>
-              <button type="button" onClick={() => duplicate(project, index)}>Duplicate</button>
-              <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`Move ${project.title} up`}>↑</button>
-              <button type="button" onClick={() => move(index, 1)} disabled={index === projects.length - 1} aria-label={`Move ${project.title} down`}>↓</button>
-              <button type="button" className="is-danger" onClick={() => requestDelete(project, index)}>Delete</button>
-            </div>
-          </article>
-        ))}
-        {!projects.length && <div className="admin-empty"><strong>No projects yet.</strong><p>Add the first project when you are ready.</p></div>}
-      </div>
-      {undo && (
-        <div className="admin-undo" role="status">
-          <span>“{undo.project.title}” removed from the draft.</span>
-          <button type="button" onClick={restore}>Undo</button>
+    <>
+      <SectionCard
+        eyebrow="06 / Projects"
+        title="Section introduction"
+        description="The heading above your project list. Keep the section number unique across the page."
+      >
+        <div className="admin-form-grid">
+          <AdminField label="Section number" value={workSection.sectionNumber || ''} onChange={(event) => updateWork('sectionNumber', event.target.value)} maxLength={4} hint="Page order is Hero, About 01, Education 02, Certificates 03, Experience 04, Projects 05, Playground 06." />
+          <AdminField label="Section label" value={workSection.sectionLabel || ''} onChange={(event) => updateWork('sectionLabel', event.target.value)} maxLength={60} />
+          <AdminField label="Heading — line one" value={workSection.headingLineOne || ''} onChange={(event) => updateWork('headingLineOne', event.target.value)} maxLength={80} />
+          <AdminField label="Heading — italic line" value={workSection.headingAccent || ''} onChange={(event) => updateWork('headingAccent', event.target.value)} maxLength={80} />
         </div>
-      )}
-    </SectionCard>
+      </SectionCard>
+
+      <SectionCard
+        eyebrow="Selected work"
+        title="Projects"
+        description="Change the order with the move buttons. Reordering works reliably on touchscreens and with a keyboard."
+      >
+        <div className="admin-section-toolbar">
+          <p>{projects.length} saved project{projects.length === 1 ? '' : 's'}</p>
+          <button type="button" className="admin-primary admin-add-button" onClick={() => setEditing(createProject())}>+ Add project</button>
+        </div>
+        <div className="admin-project-list">
+          {projects.map((project, index) => (
+            <article className={project.enabled === false ? 'admin-project-card is-disabled' : 'admin-project-card'} key={project.id || project.number || index}>
+              <div className={`admin-project-accent is-${project.accent || 'lime'}`} aria-hidden="true" />
+              <div className="admin-project-card-heading">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div><p>{project.category || 'Uncategorised project'}</p><h3>{project.title || 'Untitled project'}</h3></div>
+              </div>
+              <ToggleField label="Visible" checked={project.enabled !== false} onChange={(enabled) => commit(projects.map((item, itemIndex) => itemIndex === index ? { ...item, enabled } : item))} />
+              <div className="admin-project-actions">
+                <button type="button" onClick={() => setEditing(project)}>Edit</button>
+                <button type="button" onClick={() => duplicate(project, index)}>Duplicate</button>
+                <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`Move ${project.title} up`}>↑</button>
+                <button type="button" onClick={() => move(index, 1)} disabled={index === projects.length - 1} aria-label={`Move ${project.title} down`}>↓</button>
+                <button type="button" className="is-danger" onClick={() => requestDelete(project, index)}>Delete</button>
+              </div>
+            </article>
+          ))}
+          {!projects.length && <div className="admin-empty"><strong>No projects yet.</strong><p>Add the first project when you are ready.</p></div>}
+        </div>
+        {undo && (
+          <div className="admin-undo" role="status">
+            <span>“{undo.project.title}” removed from the draft.</span>
+            <button type="button" onClick={restore}>Undo</button>
+          </div>
+        )}
+      </SectionCard>
+    </>
   )
 }
 
@@ -966,7 +1268,7 @@ function ResumeEditor({ value, onChange, requestConfirm, notify }) {
   })
 
   return (
-    <SectionCard eyebrow="05 / Files" title="Public resume" description="PDFs are uploaded as Cloudinary raw files so the returned URL can open directly.">
+    <SectionCard eyebrow="07 / Files" title="Public resume" description="PDFs are uploaded as Cloudinary raw files so the returned URL can open directly.">
       <AdminField label="Button label" value={resume.label || ''} onChange={(event) => onChange({ ...resume, label: event.target.value })} maxLength={60} />
       <AssetUploader
         kind="resume"
@@ -1001,10 +1303,10 @@ function AdminStudio({ user, initialContent, initialPublished, onLogout }) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
-  const changedSections = useMemo(() => tabs.filter(({ id }) => (
-    JSON.stringify(content?.[id === 'files' ? 'resume' : id])
-      !== JSON.stringify(publishedContent?.[id === 'files' ? 'resume' : id])
-  )).map(({ label }) => label), [content, publishedContent])
+  const changedSections = useMemo(() => tabs.filter(({ id }) => {
+    const keys = tabSectionKeys[id] || [id]
+    return keys.some((key) => JSON.stringify(content?.[key]) !== JSON.stringify(publishedContent?.[key]))
+  }).map(({ label }) => label), [content, publishedContent])
 
   const notify = (message, tone = 'success') => setStatus({ tone, message })
   const requestConfirm = (config) => {
@@ -1053,6 +1355,12 @@ function AdminStudio({ user, initialContent, initialPublished, onLogout }) {
     if (!content.hero?.headingLineOne?.trim() || !content.hero?.headingAccent?.trim()) {
       setActiveTab('hero')
       notify('Add both hero heading fields before publishing.', 'error')
+      return false
+    }
+    const invalidQualification = (content.education?.qualifications || []).find((item) => item.enabled !== false && !item.degree?.trim())
+    if (invalidQualification) {
+      setActiveTab('education')
+      notify('Every visible qualification needs a degree name before publishing.', 'error')
       return false
     }
     const invalidProject = (content.projects || []).find((project) => project.enabled !== false && !project.title?.trim())
@@ -1176,7 +1484,9 @@ function AdminStudio({ user, initialContent, initialPublished, onLogout }) {
           {activeTab === 'hero' && <HeroEditor value={content.hero} onChange={(value) => updateSection('hero', value)} />}
           {activeTab === 'profile' && <ProfileEditor value={content.profile} onChange={(value) => updateSection('profile', value)} requestConfirm={requestConfirm} notify={notify} />}
           {activeTab === 'skills' && <SkillsEditor value={content.skills} onChange={(value) => updateSection('skills', value)} />}
-          {activeTab === 'projects' && <ProjectsEditor value={content.projects} onChange={(value) => updateSection('projects', value)} requestConfirm={requestConfirm} notify={notify} />}
+          {activeTab === 'education' && <EducationEditor value={content.education} onChange={(value) => updateSection('education', value)} requestConfirm={requestConfirm} notify={notify} />}
+          {activeTab === 'certificates' && <CertificatesEditor value={content.certificates} onChange={(value) => updateSection('certificates', value)} requestConfirm={requestConfirm} notify={notify} />}
+          {activeTab === 'projects' && <ProjectsEditor value={content.projects} onChange={(value) => updateSection('projects', value)} work={content.work} onWorkChange={(value) => updateSection('work', value)} requestConfirm={requestConfirm} notify={notify} />}
           {activeTab === 'files' && <ResumeEditor value={content.resume} onChange={(value) => updateSection('resume', value)} requestConfirm={requestConfirm} notify={notify} />}
         </section>
       </div>

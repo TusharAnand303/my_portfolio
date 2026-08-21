@@ -53,7 +53,7 @@ export default function Playground() {
 
   return (
     <section className="playground section-shell" id="playground">
-      <div className="section-heading"><span><WaveWords>05</WaveWords></span><p><WaveWords>Try it yourself</WaveWords></p></div>
+      <div className="section-heading"><span><WaveWords>06</WaveWords></span><p><WaveWords>Try it yourself</WaveWords></p></div>
       <div className="playground-heading">
         <h2><WaveWords>Pick a thing to build.<br /><i>I'll show you how I think.</i></WaveWords></h2>
         <p><WaveWords>This bit is yours. Click around — the answer changes.</WaveWords></p>
