@@ -43,7 +43,7 @@ export default function Education() {
             </div>
             {qualification.marks && (
               <p className="edu-entry-score">
-                <span><WaveWords>{qualification.scoreLabel || 'Result'}</WaveWords></span>
+                <span><WaveWords>{'% Scored'}</WaveWords></span>
                 <strong><WaveWords>{qualification.marks}</WaveWords></strong>
               </p>
             )}
